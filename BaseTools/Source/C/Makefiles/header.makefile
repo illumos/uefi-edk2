@@ -41,6 +41,7 @@ endif
 CYGWIN:=$(findstring CYGWIN, $(shell uname -s))
 LINUX:=$(findstring Linux, $(shell uname -s))
 DARWIN:=$(findstring Darwin, $(shell uname -s))
+SUNOS:=$(findstring SunOS, $(shell uname -s))
 ifeq ($(CXX), llvm)
 BUILD_CC ?= $(CLANG_BIN)clang
 BUILD_CXX ?= $(CLANG_BIN)clang++
@@ -120,6 +121,15 @@ endif
 # keep BUILD_OPTFLAGS last
 BUILD_CFLAGS   += $(BUILD_OPTFLAGS)
 BUILD_CXXFLAGS += $(BUILD_OPTFLAGS)
+
+ifeq ($(ARCH), X64)
+ifeq ($(SUNOS),SunOS)
+  BUILD_CFLAGS += -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast
+  CFLAGS   += -m64
+  CPPFLAGS   += -m64
+  LFLAGS   += -m64
+endif
+endif
 
 # keep EXTRA_LDFLAGS last
 BUILD_LFLAGS += $(EXTRA_LDFLAGS)
