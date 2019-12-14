@@ -110,7 +110,7 @@ function SetupPython3()
   if [ $origin_version ];then
     origin_version=
   fi
-  for python in $(whereis python3)
+  for python in $(which python3)
   do
     python=$(echo $python | grep "[[:digit:]]$" || true)
     python_version=${python##*python}
@@ -151,7 +151,7 @@ function SetupPython()
     if [ $origin_version ];then
       origin_version=
     fi
-    for python in $(whereis python2)
+    for python in $(which python2)
     do
       python=$(echo $python | grep "[[:digit:]]$" || true)
       python_version=${python##*python}
