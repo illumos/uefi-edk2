@@ -105,9 +105,9 @@ DefinitionBlock ("DSDT.aml", "DSDT", 2, "BHYVE", "BVDSDT", 0x00000001)
                 QWordMemory (ResourceProducer, PosDecode, MinFixed, MaxFixed, NonCacheable, ReadWrite,
                     0x0000000000000000, // Granularity
                     0x000000D000000000, // Range Minimum
-                    0x000000D0000FFFFF, // Range Maximum
+                    0x000000DFFFFFFFFF, // Range Maximum
                     0x0000000000000000, // Translation Offset
-                    0x0000000000100000, // Length
+                    0x0000001000000000, // Length
                     ,, , AddressRangeMemory, TypeStatic)
             })
             Name (PPRT, Package ()
