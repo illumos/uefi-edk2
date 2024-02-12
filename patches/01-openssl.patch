@@ -1,0 +1,12 @@
+diff --git a/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c b/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
+index 801855c930..6a5ed91023 100644
+--- a/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
++++ b/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
+@@ -13,7 +13,7 @@
+ #include <openssl/crypto.h>
+ #include "internal/cryptlib.h"
+
+-#if defined(__sun)
++#if defined(__sun) && !defined(__illumos__)
+ # include <atomic.h>
+ #  #endif
