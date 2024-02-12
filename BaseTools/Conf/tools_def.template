@@ -673,6 +673,71 @@ DEFINE GCC_LOONGARCH64_ASLDLINK_FLAGS      = DEF(GCC_LOONGARCH64_ASLDLINK_COMMON
 DEFINE GCC_LOONGARCH64_ASM_FLAGS           = -x assembler-with-cpp -mabi=lp64d -march=loongarch64 -fno-builtin -c -Wall -mno-explicit-relocs -mno-relax
 DEFINE GCC_LOONGARCH64_PP_FLAGS            = -mabi=lp64d -march=loongarch64 DEF(GCC_PP_FLAGS)
 
+#############################################################################
+#
+# ILLGCC       -- illumos
+#         This configuration is used to compile under illumos to produce
+#         PE/COFF binaries using GCC
+#
+#############################################################################
+
+
+DEFINE ILLGCC_PREFIX		= ENV(ILLGCC_BIN)
+DEFINE ILLGCC_CC		= DEF(ILLGCC_PREFIX)/gcc
+DEFINE ILLGCC_AR		= ENV(GAR)
+# OmniOS gcc uses the illumos linker so we need to explicitly specify
+# the GNU linker
+DEFINE ILLGCC_LD		= ENV(GLD)
+DEFINE ILLGCC_OBJCOPY		= ENV(GOBJCOPY)
+DEFINE ILLGCC_MAKE		= ENV(GMAKE)
+
+*_ILLGCC_*_*_FAMILY		= GCC
+
+*_ILLGCC_*_ASL_PATH		= DEF(UNIX_IASL_BIN)
+*_ILLGCC_*_MAKE_PATH		= DEF(ILLGCC_MAKE)
+*_ILLGCC_*_CC_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_ASM_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_PP_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_VFRPP_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_ASLCC_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_ASLPP_PATH		= DEF(ILLGCC_CC)
+*_ILLGCC_*_SLINK_PATH		= DEF(ILLGCC_AR)
+*_ILLGCC_*_DLINK_PATH		= DEF(ILLGCC_LD)
+*_ILLGCC_*_ASLDLINK_PATH	= DEF(ILLGCC_LD)
+*_ILLGCC_*_RC_PATH		= DEF(ILLGCC_OBJCOPY)
+*_ILLGCC_*_OBJCOPY_PATH		= DEF(ILLGCC_OBJCOPY)
+
+*_ILLGCC_*_ASLPP_FLAGS		= DEF(GCC_ASLPP_FLAGS)
+*_ILLGCC_*_ASLCC_FLAGS		= DEF(GCC_ASLCC_COMMON)
+*_ILLGCC_*_VFRPP_FLAGS		= DEF(GCC_VFRPP_FLAGS)
+*_ILLGCC_*_APP_FLAGS		=
+*_ILLGCC_*_ASL_FLAGS		= DEF(IASL_FLAGS)
+*_ILLGCC_*_ASL_OUTFLAGS		= DEF(IASL_OUTFLAGS)
+*_ILLGCC_*_GENFWHII_FLAGS	= --hiibinpackage
+
+# Specify an alternative specs file that doesn't remove line number information
+# when pre-processing assembly language files.
+*_ILLGCC_*_PP_FLAGS		= DEF(GCC_PP_FLAGS) -specs=ENV(WORKSPACE)/BaseTools/Conf/illumos.specs
+
+########################
+# illumos X64 definitions
+########################
+
+# Since we are not using gcc as a wrapper for the linker and the pre-defined
+# arguments use "-Wl", we need to explicitly state the required options
+# longhand.
+*_ILLGCC_X64_ASLDLINK_FLAGS	= -melf_x86_64_sol2 -nostdlib -n -q --gc-sections -z common-page-size=0x40 --defsym=PECOFF_HEADER_SIZE=0 --script=$(EDK_TOOLS_PATH)/Scripts/GccBase.lds --entry ReferenceAcpiTable -u ReferenceAcpiTable
+*_ILLGCC_X64_DLINK_FLAGS	= -nostdlib -n -q --gc-sections -z common-page-size=0x40 --entry $(IMAGE_ENTRY_POINT) -u $(IMAGE_ENTRY_POINT) -Map $(DEST_DIR_DEBUG)/$(BASE_NAME).map --whole-archive
+*_ILLGCC_X64_DLINK2_FLAGS	= -melf_x86_64_sol2 --oformat=elf64-x86-64-sol2 --defsym=PECOFF_HEADER_SIZE=0x228 --script=$(EDK_TOOLS_PATH)/Scripts/GccBase.lds
+*_ILLGCC_X64_DLINK_XIPFLAGS	= -z common-page-size=0x40
+
+*_ILLGCC_X64_ASLCC_FLAGS	= DEF(GCC_ASLCC_FLAGS) -m64
+*_ILLGCC_X64_ASM_FLAGS		= DEF(GCC_ASM_FLAGS) -m64 -melf_x86_64_sol2
+*_ILLGCC_X64_RC_FLAGS		= DEF(GCC_X64_RC_FLAGS) -O elf64-x86-64-sol2
+*_ILLGCC_X64_OBJCOPY_FLAGS	=
+*_ILLGCC_X64_NASM_FLAGS		= -f elf64
+*_ILLGCC_X64_CC_FLAGS		= DEF(GCC_X64_CC_FLAGS) -flto -DUSING_LTO -Os -Wno-unused-but-set-variable -Wno-unused-const-variable -Wno-maybe-uninitialized
+
 ####################################################################################
 #
 # GCC NOLTO - This configuration is used to compile under Linux to produce
