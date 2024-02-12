@@ -1,0 +1,145 @@
+#!/bin/bash
+
+# Copyright 2026 OmniOS Community Edition (OmniOSce) Association.
+
+usage() {
+	cat <<- EOM
+Usage: $0 [-bov] [-j <jobs>] <clean|RELEASE|DEBUG>
+    -b        - Build BHYVE firmware (default)
+    -o        - Build OVMF firmware (for Propolis)
+    -p        - Apply patches and exit
+    -j jobs   - Set parallelism - jobs defaults to 1 or the value of \$JOBS
+    -v        - Verbose output
+
+    'clean' will clean up the directory any remove old build remnants
+    RELEASE|DEBUG specify the firmware variant to be built
+	EOM
+	exit 1
+}
+
+: "${GCCVER:=14}"
+: "${GCCPATH:=/opt/gcc-$GCCVER}"
+: "${GCC:=$GCCPATH/bin/gcc}"
+: "${GXX:=$GCCPATH/bin/g++}"
+: "${GMAKE:=/usr/bin/gmake}"
+: "${GPATCH:=/usr/bin/gpatch}"
+: "${GAS:=/usr/bin/gas}"
+: "${GAR:=/usr/bin/gar}"
+: "${GLD:=/usr/bin/gld}"
+: "${GOBJCOPY:=/usr/bin/gobjcopy}"
+
+export GCCVER GCCPATH GCC GXX GMAKE GPATCH GAS GAR GLD GOBJCOPY
+
+verbose=0
+stock=0
+patch=0
+: "${JOBS:=1}"
+
+while [[ "$1" = -* ]]; do
+	case "$1" in
+	    -csm)
+		echo "This branch does not support building the CSM variant"
+		exit 1
+		;;
+	    -v) verbose=1 ;;
+	    -b) stock=0 ;;
+	    -o) stock=1 ;;
+	    -p) patch=1 ;;
+	    -j)
+		[ $# -ge 2 ] || usage
+		JOBS="$2"
+		shift
+		;;
+	    *) usage ;;
+	esac
+	shift
+done
+
+for p in patches/*; do
+	[[ -f "$p" ]] || continue
+	# Patches may already be applied; release archives are built from a
+	# patched tree. Probe with --dry-run so that an applied patch is
+	# skipped without leaving .rej files behind.
+	if $GPATCH --dry-run --batch --forward --strip=1 < $p >/dev/null 2>&1
+	then
+		$GPATCH --batch --forward --strip=1 < $p
+	else
+		echo "Skipping $p - does not apply (already applied?)"
+	fi
+done
+
+((patch)) && exit 0
+
+clean=0
+case "$1" in
+	DEBUG)		flavour=DEBUG
+			 ;;
+	RELEASE)	flavour=RELEASE
+			;;
+	clean)		clean=1 ;;
+	*)		usage ;;
+esac
+shift
+[ -n "$1" ] && usage
+
+
+MAKE_ARGS="
+    AS=$GAS
+    AR=$GAR
+    LD=$GLD
+    OBJCOPY=$GOBJCOPY
+    CC=$GCC BUILD_CC=$GCC
+    CXX=$GXX BUILD_CXX=$GXX
+    GCCPATH=$GCCPATH
+"
+
+((stock)) && platform=OvmfPkg/OvmfPkgX64.dsc \
+    || platform=OvmfPkg/Bhyve/BhyveX64.dsc
+
+ILLGCC_BIN=$GCCPATH/bin/
+BUILD_ARGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DNETWORK_HTTP_BOOT_ENABLE=TRUE"
+BUILD_ARGS+=" -DFD_SIZE_2MB"
+PYTHON3_ENABLE=TRUE
+[ $verbose -eq 1 ] && BUILD_ARGS+=" -v"
+
+if [ -z "$FIRMWARE_VER" ]; then
+	if [ "`git rev-parse --show-toplevel 2>/dev/null`" = "$PWD" ]; then
+		FIRMWARE_VER=`git describe --tags --always --dirty`
+	else
+		case "${PWD##*/}" in
+		    uefi-edk2-?*) FIRMWARE_VER=${PWD##*/uefi-edk2-} ;;
+		esac
+	fi
+fi
+if [ -n "$FIRMWARE_VER" ]; then
+	# The SMBIOS spec unfortunately requires this date format
+	[ -n "$FIRMWARE_DATE" ] || FIRMWARE_DATE=`date +%m/%d/%Y`
+	echo "Firmware version: $FIRMWARE_VER"
+	BUILD_ARGS+=" -D FIRMWARE_VER=$FIRMWARE_VER"
+	BUILD_ARGS+=" -D FIRMWARE_RELEASE_DATE=$FIRMWARE_DATE"
+fi
+
+export MAKE_ARGS ILLGCC_BIN BUILD_ARGS PYTHON3_ENABLE
+
+rm -rf Conf/{target,build_rule,tools_def}.txt Conf/.cache
+
+if ((clean)); then
+	gmake -j$JOBS $MAKE_ARGS HOST_ARCH=X64 ARCH=X64 -C BaseTools clean
+	rm -rf Build/
+	exit 0
+fi
+
+set -e
+
+gmake -j$JOBS $MAKE_ARGS HOST_ARCH=X64 ARCH=X64 -C BaseTools
+
+source edksetup.sh
+
+./BaseTools/BinWrappers/PosixLike/build \
+	-n $JOBS \
+	-p $platform \
+	-a X64 \
+	-b $flavour \
+	-t ILLGCC \
+	$BUILD_ARGS
+

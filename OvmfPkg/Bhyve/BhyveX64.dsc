@@ -536,6 +536,12 @@
   gUefiCpuPkgTokenSpaceGuid.PcdFirstTimeWakeUpAPsBySipi|FALSE
 
   gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor|L"BHYVE"
+!ifdef $(FIRMWARE_VER)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"$(FIRMWARE_VER)"
+!endif
+!ifdef $(FIRMWARE_RELEASE_DATE)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareReleaseDateString|L"$(FIRMWARE_RELEASE_DATE)"
+!endif
   gUefiOvmfPkgTokenSpaceGuid.PcdDebugIoPort|0x2F8
 
 ################################################################################

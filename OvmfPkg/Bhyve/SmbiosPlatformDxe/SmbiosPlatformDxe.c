@@ -59,6 +59,86 @@ STATIC CONST OVMF_TYPE0  mOvmfDefaultType0 = {
 };
 
 /**
+  Install a Type 0 (BIOS Information) table describing this firmware,
+  built from PcdFirmwareVendor, PcdFirmwareVersionString and
+  PcdFirmwareReleaseDateString.
+
+  @param  Smbios               SMBIOS protocol
+
+  @retval EFI_SUCCESS          Table was installed
+  @retval EFI_UNSUPPORTED      No firmware version string was set at build time
+  @retval Other                Table could not be installed
+
+**/
+STATIC
+EFI_STATUS
+InstallFirmwareType0 (
+  IN EFI_SMBIOS_PROTOCOL  *Smbios
+  )
+{
+  EFI_STATUS          Status;
+  EFI_SMBIOS_HANDLE   SmbiosHandle;
+  SMBIOS_TABLE_TYPE0  *Type0;
+  CHAR16              *Vendor;
+  CHAR16              *Version;
+  CHAR16              *ReleaseDate;
+  UINTN               VendorLen;
+  UINTN               VersionLen;
+  UINTN               ReleaseDateLen;
+  CHAR8               *Str;
+
+  Version = (CHAR16 *)PcdGetPtr (PcdFirmwareVersionString);
+  if (*Version == L'\0') {
+    return EFI_UNSUPPORTED;
+  }
+
+  Vendor      = (CHAR16 *)PcdGetPtr (PcdFirmwareVendor);
+  ReleaseDate = (CHAR16 *)PcdGetPtr (PcdFirmwareReleaseDateString);
+  if (*Vendor == L'\0') {
+    Vendor = L"BHYVE";
+  }
+
+  if (*ReleaseDate == L'\0') {
+    ReleaseDate = L"unknown";
+  }
+
+  VendorLen      = StrLen (Vendor);
+  VersionLen     = StrLen (Version);
+  ReleaseDateLen = StrLen (ReleaseDate);
+
+  Type0 = AllocateZeroPool (
+            sizeof (SMBIOS_TABLE_TYPE0) +
+            VendorLen + VersionLen + ReleaseDateLen + 4
+            );
+  if (Type0 == NULL) {
+    return EFI_OUT_OF_RESOURCES;
+  }
+
+  //
+  // Use the static default table for the formatted area and replace the
+  // string set with the build-time firmware identification.
+  //
+  CopyMem (Type0, &mOvmfDefaultType0.Base, sizeof (SMBIOS_TABLE_TYPE0));
+  Str = (CHAR8 *)(Type0 + 1);
+  UnicodeStrToAsciiStrS (Vendor, Str, VendorLen + 1);
+  Str += VendorLen + 1;
+  UnicodeStrToAsciiStrS (Version, Str, VersionLen + 1);
+  Str += VersionLen + 1;
+  UnicodeStrToAsciiStrS (ReleaseDate, Str, ReleaseDateLen + 1);
+
+  SmbiosHandle = SMBIOS_HANDLE_PI_RESERVED;
+  Status       = Smbios->Add (
+                           Smbios,
+                           NULL,
+                           &SmbiosHandle,
+                           (EFI_SMBIOS_TABLE_HEADER *)Type0
+                           );
+  FreePool (Type0);
+
+  return Status;
+}
+
+/**
   Validates the SMBIOS entry point structure
 
   @param  EntryPointStructure  SMBIOS entry point structure
@@ -137,15 +217,30 @@ InstallAllStructures (
   SMBIOS_STRUCTURE_POINTER  SmbiosTable;
   EFI_SMBIOS_HANDLE         SmbiosHandle;
   BOOLEAN                   NeedSmbiosType0;
+  BOOLEAN                   OverrideType0;
 
   SmbiosTable.Raw = TableAddress;
   if (SmbiosTable.Raw == NULL) {
     return EFI_INVALID_PARAMETER;
   }
 
+  //
+  // If a firmware version string was set at build time, install a Type 0
+  // table describing this firmware instead of relaying the host-provided
+  // one.
+  //
+  OverrideType0   = (*(CHAR16 *)PcdGetPtr (PcdFirmwareVersionString) != L'\0');
   NeedSmbiosType0 = TRUE;
 
   while (SmbiosTable.Hdr->Type != 127) {
+    if ((SmbiosTable.Hdr->Type == 0) && OverrideType0) {
+      //
+      // Skip the host-provided Type 0 table
+      //
+      SmbiosTable.Raw = (UINT8 *)(SmbiosTable.Raw + SmbiosTableLength (SmbiosTable));
+      continue;
+    }
+
     //
     // Log the SMBIOS data for this structure
     //
@@ -169,17 +264,20 @@ InstallAllStructures (
   }
 
   if (NeedSmbiosType0) {
-    //
-    // Add OVMF default Type 0 (BIOS Information) table
-    //
-    SmbiosHandle = SMBIOS_HANDLE_PI_RESERVED;
-    Status       = Smbios->Add (
-                             Smbios,
-                             NULL,
-                             &SmbiosHandle,
-                             (EFI_SMBIOS_TABLE_HEADER *)&mOvmfDefaultType0
-                             );
-    ASSERT_EFI_ERROR (Status);
+    Status = InstallFirmwareType0 (Smbios);
+    if (EFI_ERROR (Status)) {
+      //
+      // Add OVMF default Type 0 (BIOS Information) table
+      //
+      SmbiosHandle = SMBIOS_HANDLE_PI_RESERVED;
+      Status       = Smbios->Add (
+                               Smbios,
+                               NULL,
+                               &SmbiosHandle,
+                               (EFI_SMBIOS_TABLE_HEADER *)&mOvmfDefaultType0
+                               );
+      ASSERT_EFI_ERROR (Status);
+    }
   }
 
   return EFI_SUCCESS;

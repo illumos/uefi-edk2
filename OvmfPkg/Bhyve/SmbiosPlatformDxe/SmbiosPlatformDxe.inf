@@ -39,6 +39,9 @@
   UefiDriverEntryPoint
 
 [Pcd]
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareReleaseDateString
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVendor
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString
   gUefiOvmfPkgTokenSpaceGuid.PcdQemuSmbiosValidated
 
 [Protocols]

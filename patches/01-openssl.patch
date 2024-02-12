@@ -1,0 +1,12 @@
+diff --git a/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c b/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
+--- a/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
++++ b/CryptoPkg/Library/OpensslLib/openssl/crypto/threads_pthread.c
+@@ -36,7 +36,7 @@
+ #define TSAN_FAKE_LOCK(x)
+ #endif
+ 
+-#if defined(__sun)
++#if defined(__sun) && !defined(__illumos__)
+ #include <atomic.h>
+ #endif
+ 

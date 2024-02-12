@@ -695,6 +695,13 @@
 
   gEfiMdePkgTokenSpaceGuid.PcdFSBClock|1000000000
 
+!ifdef $(FIRMWARE_VER)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareVersionString|L"$(FIRMWARE_VER)"
+!endif
+!ifdef $(FIRMWARE_RELEASE_DATE)
+  gEfiMdeModulePkgTokenSpaceGuid.PcdFirmwareReleaseDateString|L"$(FIRMWARE_RELEASE_DATE)"
+!endif
+
 ################################################################################
 #
 # Pcd Dynamic Section - list of all EDK II PCD Entries defined by this Platform
