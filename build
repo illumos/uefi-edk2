@@ -4,9 +4,10 @@
 
 usage() {
 	cat <<- EOM
-Usage: $0 [-bov] [-j <jobs>] <clean|RELEASE|DEBUG>
+Usage: $0 [-botv] [-j <jobs>] <clean|RELEASE|DEBUG>
     -b        - Build BHYVE firmware (default)
     -o        - Build OVMF firmware (for Propolis)
+    -t        - Include TPM 2.0 support (measured boot, TCG event log)
     -p        - Apply patches and exit
     -j jobs   - Set parallelism - jobs defaults to 1 or the value of \$JOBS
     -v        - Verbose output
@@ -33,6 +34,7 @@ export GCCVER GCCPATH GCC GXX GMAKE GPATCH GAS GAR GLD GOBJCOPY
 verbose=0
 stock=0
 patch=0
+tpm=0
 : "${JOBS:=1}"
 
 while [[ "$1" = -* ]]; do
@@ -44,6 +46,7 @@ while [[ "$1" = -* ]]; do
 	    -v) verbose=1 ;;
 	    -b) stock=0 ;;
 	    -o) stock=1 ;;
+	    -t) tpm=1 ;;
 	    -p) patch=1 ;;
 	    -j)
 		[ $# -ge 2 ] || usage
@@ -99,6 +102,7 @@ MAKE_ARGS="
 ILLGCC_BIN=$GCCPATH/bin/
 BUILD_ARGS="-DDEBUG_ON_SERIAL_PORT=TRUE -DNETWORK_HTTP_BOOT_ENABLE=TRUE"
 BUILD_ARGS+=" -DFD_SIZE_2MB"
+((tpm)) && BUILD_ARGS+=" -DTPM2_ENABLE=TRUE"
 PYTHON3_ENABLE=TRUE
 [ $verbose -eq 1 ] && BUILD_ARGS+=" -v"
 
